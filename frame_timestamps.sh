@@ -56,9 +56,34 @@ if [[ "$TIMESTAMP_MODE" != "fast" && "$TIMESTAMP_MODE" != "details" ]]; then
 fi
 
 require_dir "STINGRAY_DATA_ROOT" "$STINGRAY_DATA_ROOT"
-require_dir "VIDEO_INPUT_DIR" "$VIDEO_INPUT_DIR"
+require_dir "VIDEO_DATA_ROOT" "$VIDEO_DATA_ROOT"
+require_value "CAMERA_STREAM" "$CAMERA_STREAM"
 require_value "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
 require_value "CRUISE" "$CRUISE"
+
+# Prefer the configured path, but do not assume that every platform stores
+# media under the same collection/cruise directory layout. If the generated
+# path is absent, discover a unique camera directory under VIDEO_DATA_ROOT.
+configured_video_input_dir="${VIDEO_INPUT_DIR:-}"
+if [[ -n "$configured_video_input_dir" && -d "$configured_video_input_dir" ]]; then
+    resolved_video_input_dir="$configured_video_input_dir"
+else
+    mapfile -t camera_matches < <(
+        find "$VIDEO_DATA_ROOT" -type d -name "$CAMERA_STREAM" -print
+    )
+    if (( ${#camera_matches[@]} == 0 )); then
+        echo "[ERROR] Could not find camera directory '$CAMERA_STREAM' under $VIDEO_DATA_ROOT." >&2
+        exit 2
+    fi
+    if (( ${#camera_matches[@]} > 1 )); then
+        echo "[ERROR] Found multiple camera directories named '$CAMERA_STREAM':" >&2
+        printf '  %s\n' "${camera_matches[@]}" >&2
+        echo "[ERROR] Set VIDEO_INPUT_DIR to select the intended directory." >&2
+        exit 2
+    fi
+    resolved_video_input_dir="${camera_matches[0]}"
+    echo "[INFO] Discovered video input directory: $resolved_video_input_dir"
+fi
 
 CPU_COUNT="${STINGRAY_CPU_COUNT:-$(nproc)}"
 if [[ ! "$CPU_COUNT" =~ ^[1-9][0-9]*$ ]]; then
@@ -84,7 +109,7 @@ source "$CVISION_ENV/bin/activate"
 FRAME_ARGS=(
     --work-dir "$STINGRAY_DATA_ROOT"
     --cruise "$CRUISE"
-    --media-dir "$VIDEO_INPUT_DIR"
+    --media-dir "$resolved_video_input_dir"
     --out-dir "$MEDIA_LIST_DIR"
     --max-workers "$MAX_WORKERS"
     --suffix "${TIMESTAMP_SUFFIXES[@]}"
