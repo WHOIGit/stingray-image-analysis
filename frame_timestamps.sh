@@ -17,6 +17,10 @@ if [[ ! -f "$CONFIG_PATH" ]]; then
 fi
 source "$CONFIG_PATH"
 
+# Keep optional settings safe under `set -u`; older callers may not define them.
+ENABLE_TIMESTAMPS="${ENABLE_TIMESTAMPS:-1}"
+TIMESTAMP_FILE_LIMIT="${TIMESTAMP_FILE_LIMIT:-}"
+
 require_value() {
     local name="$1"
     local value="$2"
