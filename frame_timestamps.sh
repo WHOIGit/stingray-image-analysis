@@ -70,6 +70,23 @@ require_writable_location() {
     rm -f "$probe_file"
 }
 
+require_writable_output() {
+    local name="$1"
+    local value="$2"
+    require_value "$name" "$value"
+
+    if [[ -e "$value" ]]; then
+        if [[ ! -f "$value" || ! -w "$value" ]]; then
+            echo "[ERROR] Existing output is not writable: $name=$value" >&2
+            echo "[ERROR] Update the configuration or file permissions before rerunning this workflow." >&2
+            exit 2
+        fi
+        return
+    fi
+
+    require_writable_location "$name parent" "$(dirname "$value")"
+}
+
 require_file() {
     local name="$1"
     local value="$2"
@@ -90,7 +107,8 @@ require_dir "VIDEO_DATA_ROOT" "$VIDEO_DATA_ROOT"
 require_value "CAMERA_STREAM" "$CAMERA_STREAM"
 require_value "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
 require_value "CRUISE" "$CRUISE"
-require_writable_location "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
+require_writable_output "VIDEO_LIST_CSV" "$VIDEO_LIST_CSV"
+require_writable_output "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 
 # Prefer the configured path, but do not assume that every platform stores
 # media under the same collection/cruise directory layout. If the generated

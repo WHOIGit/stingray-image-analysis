@@ -54,6 +54,23 @@ require_writable_location() {
     rm -f "$probe_file"
 }
 
+require_writable_output() {
+    local name="$1"
+    local value="$2"
+    require_value "$name" "$value"
+
+    if [[ -e "$value" ]]; then
+        if [[ ! -f "$value" || ! -w "$value" ]]; then
+            echo "[ERROR] Existing output is not writable: $name=$value" >&2
+            echo "[ERROR] Update the configuration or file permissions before rerunning this workflow." >&2
+            exit 2
+        fi
+        return
+    fi
+
+    require_writable_location "$name parent" "$(dirname "$value")"
+}
+
 require_file() {
     local name="$1"
     local value="$2"
@@ -88,9 +105,9 @@ require_switch "ADD_CI" "$ADD_CI"
 
 require_dir "STINGRAY_DATA_ROOT" "$STINGRAY_DATA_ROOT"
 require_file "CLASS_YAML" "$CLASS_YAML"
-require_writable_location "DETECTIONS_CSV" "$DETECTIONS_CSV"
-require_writable_location "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
-require_writable_location "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
+require_writable_output "DETECTIONS_CSV" "$DETECTIONS_CSV"
+require_writable_output "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
+require_writable_output "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
 require_file "SENSOR_CSV" "$SENSOR_CSV"
 require_file "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 require_value "DETECTIONS_CSV" "$DETECTIONS_CSV"
