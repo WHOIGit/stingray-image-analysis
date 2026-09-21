@@ -105,8 +105,13 @@ fi
 require_dir "STINGRAY_DATA_ROOT" "$STINGRAY_DATA_ROOT"
 require_dir "VIDEO_DATA_ROOT" "$VIDEO_DATA_ROOT"
 require_value "CAMERA_STREAM" "$CAMERA_STREAM"
+require_value "CRUISE_DATE" "$CRUISE_DATE"
 require_value "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
 require_value "CRUISE" "$CRUISE"
+if [[ ! "$CRUISE_DATE" =~ ^[0-9]{8}$ ]]; then
+    echo "[ERROR] CRUISE_DATE must use YYYYMMDD format: $CRUISE_DATE" >&2
+    exit 2
+fi
 require_writable_output "VIDEO_LIST_CSV" "$VIDEO_LIST_CSV"
 require_writable_output "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 
@@ -158,6 +163,7 @@ source "$CVISION_ENV/bin/activate"
 FRAME_ARGS=(
     --work-dir "$STINGRAY_DATA_ROOT"
     --cruise "$CRUISE"
+    --cruise-date "$CRUISE_DATE"
     --media-dir "$resolved_video_input_dir"
     --out-dir "$MEDIA_LIST_DIR"
     --max-workers "$MAX_WORKERS"
