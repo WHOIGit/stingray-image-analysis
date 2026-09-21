@@ -27,6 +27,33 @@ require_value() {
     fi
 }
 
+require_writable_location() {
+    local name="$1"
+    local value="$2"
+    require_value "$name" "$value"
+
+    local target_dir
+    target_dir="$(dirname "$value")"
+    local probe_dir="$target_dir"
+    while [[ ! -d "$probe_dir" ]]; do
+        local parent_dir
+        parent_dir="$(dirname "$probe_dir")"
+        if [[ "$parent_dir" == "$probe_dir" ]]; then
+            echo "[ERROR] Cannot find an existing parent directory for $name: $value" >&2
+            exit 2
+        fi
+        probe_dir="$parent_dir"
+    done
+
+    local probe_file
+    if ! probe_file="$(mktemp "$probe_dir/.stingray-write-test.XXXXXX")"; then
+        echo "[ERROR] Output location for $name is not writable: $value" >&2
+        echo "[ERROR] Update the configuration before rerunning this workflow." >&2
+        exit 2
+    fi
+    rm -f "$probe_file"
+}
+
 require_file() {
     local name="$1"
     local value="$2"
@@ -61,6 +88,9 @@ require_switch "ADD_CI" "$ADD_CI"
 
 require_dir "STINGRAY_DATA_ROOT" "$STINGRAY_DATA_ROOT"
 require_file "CLASS_YAML" "$CLASS_YAML"
+require_writable_location "DETECTIONS_CSV" "$DETECTIONS_CSV"
+require_writable_location "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
+require_writable_location "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
 require_file "SENSOR_CSV" "$SENSOR_CSV"
 require_file "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 require_value "DETECTIONS_CSV" "$DETECTIONS_CSV"

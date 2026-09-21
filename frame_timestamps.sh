@@ -40,6 +40,36 @@ require_dir() {
     fi
 }
 
+require_writable_location() {
+    local name="$1"
+    local value="$2"
+    require_value "$name" "$value"
+
+    local probe_dir="$value"
+    if [[ -e "$probe_dir" && ! -d "$probe_dir" ]]; then
+        echo "[ERROR] $name is not a directory: $value" >&2
+        exit 2
+    fi
+
+    while [[ ! -d "$probe_dir" ]]; do
+        local parent_dir
+        parent_dir="$(dirname "$probe_dir")"
+        if [[ "$parent_dir" == "$probe_dir" ]]; then
+            echo "[ERROR] Cannot find an existing parent directory for $name: $value" >&2
+            exit 2
+        fi
+        probe_dir="$parent_dir"
+    done
+
+    local probe_file
+    if ! probe_file="$(mktemp "$probe_dir/.stingray-write-test.XXXXXX")"; then
+        echo "[ERROR] $name is not writable (or cannot be created): $value" >&2
+        echo "[ERROR] Update the configuration before rerunning this workflow." >&2
+        exit 2
+    fi
+    rm -f "$probe_file"
+}
+
 require_file() {
     local name="$1"
     local value="$2"
@@ -60,6 +90,7 @@ require_dir "VIDEO_DATA_ROOT" "$VIDEO_DATA_ROOT"
 require_value "CAMERA_STREAM" "$CAMERA_STREAM"
 require_value "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
 require_value "CRUISE" "$CRUISE"
+require_writable_location "MEDIA_LIST_DIR" "$MEDIA_LIST_DIR"
 
 # Prefer the configured path, but do not assume that every platform stores
 # media under the same collection/cruise directory layout. If the generated
