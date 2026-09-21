@@ -37,6 +37,56 @@ require_file() {
     fi
 }
 
+resolve_video_list() {
+    local expected_path="$1"
+    local search_dir
+    local run_matches=()
+    local cruise_matches=()
+
+    if [[ -f "$expected_path" ]]; then
+        return
+    fi
+
+    search_dir="$(dirname "$expected_path")"
+    if [[ ! -d "$search_dir" ]]; then
+        echo "[ERROR] Media-list directory does not exist: $search_dir" >&2
+        exit 2
+    fi
+
+    mapfile -t run_matches < <(
+        find "$search_dir" -maxdepth 1 -type f \
+            -name "${RUN_NAME}*_video_list*.csv" -print | sort
+    )
+    if (( ${#run_matches[@]} == 1 )); then
+        VIDEO_LIST_CSV="${run_matches[0]}"
+        echo "[WARN] Configured video list not found; using date/cruise match: $VIDEO_LIST_CSV"
+        return
+    fi
+    if (( ${#run_matches[@]} > 1 )); then
+        echo "[ERROR] Multiple date/cruise video lists found:" >&2
+        printf '  %s\n' "${run_matches[@]}" >&2
+        exit 2
+    fi
+
+    mapfile -t cruise_matches < <(
+        find "$search_dir" -maxdepth 1 -type f \
+            -name "*${CRUISE}*_video_list*.csv" -print | sort
+    )
+    if (( ${#cruise_matches[@]} == 1 )); then
+        VIDEO_LIST_CSV="${cruise_matches[0]}"
+        echo "[WARN] Configured/date-cruise video list not found; using cruise-only match: $VIDEO_LIST_CSV"
+        return
+    fi
+    if (( ${#cruise_matches[@]} > 1 )); then
+        echo "[ERROR] Multiple cruise-only video lists found:" >&2
+        printf '  %s\n' "${cruise_matches[@]}" >&2
+        exit 2
+    fi
+
+    echo "[ERROR] No video list found for RUN_NAME=${RUN_NAME} or CRUISE=${CRUISE}." >&2
+    exit 2
+}
+
 require_arguments_configured() {
     local name="$1"
     shift
@@ -53,6 +103,8 @@ require_configured "MODEL_ENV" "$MODEL_ENV"
 require_configured "PREDICTION_PROJECT" "$PREDICTION_PROJECT"
 require_configured "VIDEO_SUFFIX" "$VIDEO_SUFFIX"
 require_file "MODEL_WEIGHTS_PATH" "$MODEL_WEIGHTS_PATH"
+require_configured "VIDEO_LIST_CSV" "$VIDEO_LIST_CSV"
+resolve_video_list "$VIDEO_LIST_CSV"
 require_file "VIDEO_LIST_CSV" "$VIDEO_LIST_CSV"
 require_arguments_configured "PREDICTION_ARGS" "${PREDICTION_ARGS[@]}"
 

@@ -13,6 +13,7 @@ RUN_NAME="${CRUISE_DATE}_${CRUISE}"
 # The timestamp mode is part of both shared list names. Keeping it here ensures
 # timestamp, inference, and abundance resolve the same artifacts.
 TIMESTAMP_MODE="fast"
+TIMESTAMP_FORMAT="%Y%m%dT%H%M%S.%f"
 
 CVISION_ENV=".venv/cvision"
 MODEL_ENV="$CVISION_ENV"

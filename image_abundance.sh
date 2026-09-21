@@ -81,6 +81,59 @@ require_file() {
     fi
 }
 
+resolve_media_list() {
+    local variable_name="$1"
+    local expected_path="$2"
+    local list_kind="$3"
+    local search_dir
+    local run_matches=()
+    local cruise_matches=()
+
+    if [[ -f "$expected_path" ]]; then
+        printf -v "$variable_name" '%s' "$expected_path"
+        return
+    fi
+
+    search_dir="$(dirname "$expected_path")"
+    if [[ ! -d "$search_dir" ]]; then
+        echo "[ERROR] Media-list directory does not exist: $search_dir" >&2
+        exit 2
+    fi
+
+    mapfile -t run_matches < <(
+        find "$search_dir" -maxdepth 1 -type f \
+            -name "${RUN_NAME}*_${list_kind}*.csv" -print | sort
+    )
+    if (( ${#run_matches[@]} == 1 )); then
+        printf -v "$variable_name" '%s' "${run_matches[0]}"
+        echo "[WARN] Configured list not found; using date/cruise match: ${run_matches[0]}"
+        return
+    fi
+    if (( ${#run_matches[@]} > 1 )); then
+        echo "[ERROR] Multiple date/cruise ${list_kind} lists found:" >&2
+        printf '  %s\n' "${run_matches[@]}" >&2
+        exit 2
+    fi
+
+    mapfile -t cruise_matches < <(
+        find "$search_dir" -maxdepth 1 -type f \
+            -name "*${CRUISE}*_${list_kind}*.csv" -print | sort
+    )
+    if (( ${#cruise_matches[@]} == 1 )); then
+        printf -v "$variable_name" '%s' "${cruise_matches[0]}"
+        echo "[WARN] Configured/date-cruise list not found; using cruise-only match: ${cruise_matches[0]}"
+        return
+    fi
+    if (( ${#cruise_matches[@]} > 1 )); then
+        echo "[ERROR] Multiple cruise-only ${list_kind} lists found:" >&2
+        printf '  %s\n' "${cruise_matches[@]}" >&2
+        exit 2
+    fi
+
+    echo "[ERROR] No ${list_kind} list found for RUN_NAME=${RUN_NAME} or CRUISE=${CRUISE}." >&2
+    exit 2
+}
+
 require_dir() {
     local name="$1"
     local value="$2"
@@ -109,6 +162,8 @@ require_writable_output "DETECTIONS_CSV" "$DETECTIONS_CSV"
 require_writable_output "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
 require_writable_output "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
 require_file "SENSOR_CSV" "$SENSOR_CSV"
+require_value "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
+resolve_media_list FRAME_LIST_CSV "$FRAME_LIST_CSV" "frame_list"
 require_file "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 require_value "DETECTIONS_CSV" "$DETECTIONS_CSV"
 require_value "CLASS_MAP_CSV" "$CLASS_MAP_CSV"

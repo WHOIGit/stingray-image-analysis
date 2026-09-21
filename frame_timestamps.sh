@@ -20,6 +20,7 @@ source "$CONFIG_PATH"
 # Keep optional settings safe under `set -u`; older callers may not define them.
 ENABLE_TIMESTAMPS="${ENABLE_TIMESTAMPS:-1}"
 TIMESTAMP_FILE_LIMIT="${TIMESTAMP_FILE_LIMIT:-}"
+TIMESTAMP_FORMAT="${TIMESTAMP_FORMAT:-%Y%m%dT%H%M%S.%f}"
 
 require_value() {
     local name="$1"
@@ -68,33 +69,6 @@ require_writable_location() {
         exit 2
     fi
     rm -f "$probe_file"
-}
-
-require_writable_output() {
-    local name="$1"
-    local value="$2"
-    require_value "$name" "$value"
-
-    if [[ -e "$value" ]]; then
-        if [[ ! -f "$value" || ! -w "$value" ]]; then
-            echo "[ERROR] Existing output is not writable: $name=$value" >&2
-            echo "[ERROR] Update the configuration or file permissions before rerunning this workflow." >&2
-            exit 2
-        fi
-        return
-    fi
-
-    require_writable_location "$name parent" "$(dirname "$value")"
-}
-
-require_file() {
-    local name="$1"
-    local value="$2"
-    require_value "$name" "$value"
-    if [[ ! -f "$value" ]]; then
-        echo "[ERROR] Expected output was not created: $name=$value" >&2
-        exit 1
-    fi
 }
 
 if [[ "$TIMESTAMP_MODE" != "fast" && "$TIMESTAMP_MODE" != "details" ]]; then
@@ -160,6 +134,7 @@ FRAME_ARGS=(
     --media-dir "$resolved_video_input_dir"
     --out-dir "$MEDIA_LIST_DIR"
     --max-workers "$MAX_WORKERS"
+    --timestamp-format "$TIMESTAMP_FORMAT"
     --suffix "${TIMESTAMP_SUFFIXES[@]}"
     --no-file-log
 )
