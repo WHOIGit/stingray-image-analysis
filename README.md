@@ -27,7 +27,7 @@ cd stingray-image-analysis
 python3 -m venv .venv/cvision
 source .venv/cvision/bin/activate
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install --upgrade pyyaml "stingraytools[images] @ git+https://github.com/anhph95/stingraytools.git"
+python -m pip install --upgrade pyyaml "stingraytools[images] @ git+https://github.com/WHOIGit/stingraytools.git"
 ```
 
 YOLO prediction and training additionally require Ultralytics:

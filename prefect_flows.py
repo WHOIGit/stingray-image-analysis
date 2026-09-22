@@ -8,7 +8,7 @@ import docker
 from prefect import flow, get_run_logger, task
 
 
-DEFAULT_IMAGE = "ghcr.io/whoigit/stingray-image-analysis:latest"
+DEFAULT_IMAGE = "ghcr.io/WHOIGit/stingray-image-analysis:latest"
 CONTAINER_CONFIG = "/run/cruise.conf.sh"
 CONTAINER_WORKSPACE = "/app/workspace"
 
