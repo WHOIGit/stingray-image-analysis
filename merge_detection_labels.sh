@@ -256,7 +256,7 @@ if [[ "$TOTAL_FILES" -eq 0 ]]; then
 fi
 
 # Write the header before parallel workers generate body rows.
-echo "media,frame,class_id,confidence" > "$OUTPUT_CSV"
+echo "media,frame,class_id,x_center,y_center,width,height,confidence" > "$OUTPUT_CSV"
 
 # Split the file list into static batches and process batches in parallel.
 BATCH_SIZE=$(( (TOTAL_FILES + JOBS - 1) / JOBS ))
@@ -292,7 +292,7 @@ for ((i = 0; i < JOBS; i++)); do
                         exit 3
                     }
                     confidence = (NF >= 6) ? $6 : 1
-                    print media "," frame "," $1 "," confidence
+                    print media "," frame "," $1 "," $2 "," $3 "," $4 "," $5 "," confidence
                 }
             ' class_map="$CLASS_MAP" "$file"
         done
