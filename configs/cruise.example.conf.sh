@@ -21,7 +21,6 @@ MODEL_ENV="$CVISION_ENV"
 VIDEO_DATA_ROOT="CHANGEME_VIDEO_DATA_ROOT"
 STINGRAY_DATA_ROOT="CHANGEME_STINGRAY_DATA_ROOT"
 SENSOR_DATASET="CHANGEME_SENSOR_DATASET"
-ABUNDANCE_DATASET="shadowgraph"
 
 VIDEO_INPUT_DIR="${VIDEO_DATA_ROOT}/${CRUISE_COLLECTION}_${CRUISE}/${CAMERA_STREAM}"
 MEDIA_LIST_DIR="${STINGRAY_DATA_ROOT}/media_list/${CAMERA_STREAM}"
@@ -37,7 +36,9 @@ FRAME_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_frame_list${TIMESTAMP_LIST_SUFFIX}
 DETECTIONS_CSV="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_detection_labels.csv"
 CLASS_MAP_CSV="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_class_map.csv"
 SENSOR_CSV="${STINGRAY_DATA_ROOT}/dashboard_data/data/${SENSOR_DATASET}/${RUN_NAME}.csv"
-ABUNDANCE_OUT_CSV="${STINGRAY_DATA_ROOT}/dashboard_data/data/${ABUNDANCE_DATASET}/${RUN_NAME}.csv"
+# Publish the merged product over the sensor CSV so the dashboard sees one
+# dataset. The abundance command replaces prior abundance columns on reruns.
+ABUNDANCE_OUT_CSV="${SENSOR_CSV}"
 
 ###############################################################################
 # Frame timestamp configuration

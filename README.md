@@ -53,7 +53,8 @@ Edit `configs/my_cruise.conf.sh` and set:
 
 - cruise identity, date, collection, and camera stream;
 - video and Stingray data directories;
-- sensor dataset and output dataset names;
+- sensor dataset name; the abundance product is written back to the same
+  dashboard CSV when processing completes;
 - trained model weights and organism class names;
 - timestamp, prediction, and abundance parameters.
 
