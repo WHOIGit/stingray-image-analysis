@@ -1,25 +1,34 @@
 # Stingray Image Analysis
 
-This project converts cruise video into time-resolved biological abundance.
-Four independent jobs are available:
+This repository runs video processing for Stingray cruises:
 
-1. determine the acquisition time of every video frame;
-2. detect and classify organisms with a YOLO model;
-3. convert detections into abundance aligned with the sensor time series; and
-4. train a YOLO model from annotated images.
+1. build video and frame timestamps;
+2. run YOLO detection and classification;
+3. convert detections to time-binned abundance; and
+4. train YOLO models from annotated images.
 
-The first three jobs share one cruise configuration. Run only the jobs needed
-for a particular dataset, but preserve their order when running the complete
-analysis:
+The workflow uses the reusable commands in
+[stingraytools](https://github.com/WHOIGit/stingraytools).
+
+## Data contract
+
+Each cruise has one dashboard CSV:
 
 ```text
-video -> frame timestamps -> detections -> abundance
+dashboard_data/data/<sensor_dataset>/<cruise>.csv
 ```
+
+The abundance step reads the sensor-derived CSV and writes the merged
+sensor+abundance product back to that same path. Re-running abundance replaces
+the previous abundance columns instead of creating a second product file.
+
+Raw sensor files remain the source from which StingrayTools can regenerate the
+sensor-derived CSV.
 
 ## Requirements
 
-Use Linux or WSL2 with Python 3.11 or newer. Run the following commands from
-the directory where you want to keep the project:
+Use Linux or WSL2 with Python 3.11 or newer. Install the workflow and its
+dependencies in a project environment:
 
 ```bash
 git clone https://github.com/WHOIGit/stingray-image-analysis.git
@@ -27,21 +36,17 @@ cd stingray-image-analysis
 python3 -m venv .venv/cvision
 source .venv/cvision/bin/activate
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install --upgrade pyyaml "stingraytools[images] @ git+https://github.com/WHOIGit/stingraytools.git"
+python -m pip install pyyaml \
+  "stingraytools[images] @ git+https://github.com/WHOIGit/stingraytools.git"
 ```
 
-YOLO prediction and training additionally require Ultralytics:
+YOLO prediction and training also require:
 
 ```bash
-source .venv/cvision/bin/activate
-python -m pip install --upgrade ultralytics
+python -m pip install ultralytics
 ```
 
-On Slurm, create the same environment on a filesystem visible to the compute
-nodes. The supplied jobs load `miniconda/25.9` before activating the configured
-environment.
-
-## Configure an analysis
+## Configuration
 
 Create a cruise configuration:
 
@@ -49,31 +54,19 @@ Create a cruise configuration:
 cp configs/cruise.example.conf.sh configs/my_cruise.conf.sh
 ```
 
-Edit `configs/my_cruise.conf.sh` and set:
+Set the cruise identity, input paths, sensor dataset, model weights, class
+names, and timestamp, prediction, and abundance parameters. `SENSOR_CSV` and
+`ABUNDANCE_OUT_CSV` should resolve to the same dashboard CSV.
 
-- cruise identity, date, collection, and camera stream;
-- video and Stingray data directories;
-- sensor dataset name; the abundance product is written back to the same
-  dashboard CSV when processing completes;
-- trained model weights and organism class names;
-- timestamp, prediction, and abundance parameters.
-
-The cruise date must match the date encoded in the media filenames. Relative
-configuration, environment, input, workspace, and output paths are evaluated
-from the current working directory. Run all commands from the project root.
-
-Training uses a separate configuration:
+Create a training configuration when needed:
 
 ```bash
 cp configs/yolo_train.example.conf.sh configs/my_training.conf.sh
 ```
 
-Set the training dataset, initial model, image size, batch size, epoch count,
-and device selection in `TRAIN_ARGS`.
+## Run the workflow
 
-## Run locally
-
-Activate the environment and run the required jobs from the project root:
+Run the required stages in this order:
 
 ```bash
 source .venv/cvision/bin/activate
@@ -82,93 +75,44 @@ bash yolo_predict.sh configs/my_cruise.conf.sh
 bash image_abundance.sh configs/my_cruise.conf.sh
 ```
 
-Train a model independently when new annotations are available:
+The stages can be run independently when their inputs already exist. Train a
+model separately:
 
 ```bash
 bash yolo_train.sh configs/my_training.conf.sh
 ```
 
-## Run with Slurm
-
-Create the log directory before submission because Slurm opens the log files
-before the job begins:
+The Slurm wrappers use the same configuration files:
 
 ```bash
-mkdir -p slogs
+sbatch frame_timestamps.sbatch configs/my_cruise.conf.sh
+sbatch yolo_predict.sbatch configs/my_cruise.conf.sh
+sbatch image_abundance.sbatch configs/my_cruise.conf.sh
+sbatch yolo_train.sbatch configs/my_training.conf.sh
 ```
 
-Submit the required jobs from the project root:
+## Outputs
 
-```bash
-sbatch --mail-user=YOUR_EMAIL frame_timestamps.sbatch configs/my_cruise.conf.sh
-sbatch --mail-user=YOUR_EMAIL yolo_predict.sbatch configs/my_cruise.conf.sh
-sbatch --mail-user=YOUR_EMAIL image_abundance.sbatch configs/my_cruise.conf.sh
-sbatch --mail-user=YOUR_EMAIL yolo_train.sbatch configs/my_training.conf.sh
-```
+- `VIDEO_LIST_CSV`: video timing and processing status.
+- `FRAME_LIST_CSV`: timestamped frame records.
+- `PREDICTION_PROJECT`: per-video detections and completion markers.
+- `DETECTIONS_CSV`: combined detection table.
+- `CLASS_MAP_CSV`: model class to organism-name mapping.
+- `ABUNDANCE_OUT_CSV`: the updated dashboard CSV.
 
-The jobs may be submitted independently when their required inputs already
-exist. For a complete analysis, wait for timestamps before prediction and wait
-for prediction before abundance.
+## Abundance calculation
 
-## Scientific calculations
-
-### Frame timestamps
-
-The timestamp job produces a video-level table and a frame-level table. Fast
-mode estimates frame time from the media start time, frame index $i$, and
-measured frame rate $f$:
+Detections below `SCORE_THRESH` are discarded, matched to frame times, and
+grouped into `BIN_WIDTH` intervals. For class \(c\) in bin \(b\):
 
 $$
-t_i = t_0 + \frac{i}{f}.
+A_{b,c} = \frac{1}{V_f}\left(\frac{1}{n_b}\sum_{i=1}^{n_b} k_{i,c}\right),
 $$
 
-Use `TIMESTAMP_MODE="fast"` for routine processing. Use
-`TIMESTAMP_MODE="details"` when timestamps must be read for every individual
-frame. Details mode is slower but records unreadable files and frames
-explicitly.
+where `VOLUME_PER_FRAME` defines \(V_f\). Total abundance is the sum across
+classes. When `ADD_CI="1"`, Poisson confidence intervals are calculated from
+raw detection counts.
 
-The resulting `VIDEO_LIST_CSV` controls which videos are eligible for
-prediction. `FRAME_LIST_CSV` provides the time coordinate used for abundance.
+## License
 
-### Detection
-
-YOLO predicts organism classes and confidence scores for each frame.
-Detections are stored per video. A video is considered complete only after its
-success marker is written, so interrupted runs can resume without repeating
-completed videos. Outputs from incomplete videos are excluded from abundance.
-
-`PREDICTION_FILE_LIMIT` can restrict a test run to the first specified number
-of remaining videos. Leave it empty to process the full remaining dataset.
-
-### Abundance
-
-Detections with confidence below `SCORE_THRESH` are removed. The retained
-detections are matched to frame times and grouped into intervals of width
-`BIN_WIDTH`.
-
-For class $c$ in time bin $b$, let $k_{i,c}$ be the number of detections in
-frame $i$, let $n_b$ be the number of frames in the bin, and let $V_f$ be the
-sample volume represented by one frame. The reported abundance is
-
-$$
-A_{b,c} = \frac{1}{V_f}\left(\frac{1}{n_b}\sum_{i=1}^{n_b} k_{i,c}\right).
-$$
-
-`VOLUME_PER_FRAME` defines $V_f$. Total abundance is the sum over all classes:
-
-$$
-A_{b,\mathrm{total}} = \sum_c A_{b,c}.
-$$
-
-When `ADD_CI="1"`, Poisson confidence intervals are calculated from the raw
-detection counts. The abundance table is then aligned with `SENSOR_CSV` by
-time and written to `ABUNDANCE_OUT_CSV`.
-
-## Main outputs
-
-- `VIDEO_LIST_CSV`: video metadata, status, timing, frame count, and frame rate.
-- `FRAME_LIST_CSV`: one timestamped record per frame.
-- `PREDICTION_PROJECT`: per-video YOLO detections and completion records.
-- `DETECTIONS_CSV`: combined detection table used for abundance.
-- `CLASS_MAP_CSV`: numerical model classes mapped to scientific class names.
-- `ABUNDANCE_OUT_CSV`: sensor data with class-specific and total abundance.
+Stingray Image Analysis is distributed under the MIT License. See [LICENSE](LICENSE).
