@@ -33,8 +33,7 @@ if [[ "$TIMESTAMP_MODE" == "details" ]]; then
 fi
 VIDEO_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_video_list${TIMESTAMP_LIST_SUFFIX}.csv"
 FRAME_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_frame_list${TIMESTAMP_LIST_SUFFIX}.csv"
-DETECTIONS_CSV="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_detection_labels.csv"
-CLASS_MAP_CSV="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_class_map.csv"
+DETECTIONS_PARQUET="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_detection_labels.parquet"
 SENSOR_CSV="${STINGRAY_DATA_ROOT}/dashboard_data/data/${SENSOR_DATASET}/${RUN_NAME}.csv"
 # Publish the merged product over the sensor CSV so the dashboard sees one
 # dataset. The abundance command replaces prior abundance columns on reruns.
@@ -89,6 +88,15 @@ PREDICTION_ARGS=(
 CLASS_YAML="CHANGEME_CLASS_NAMES_YAML"
 MERGE_LABELS="1"
 LABEL_DIRS=("$PREDICTION_PROJECT")
+# Labels are merged by merge_detections_parquet.py into one Parquet table with
+# class names and COCO pixel boxes.
+# Video frame size of this camera stream, used to convert YOLO boxes to pixels.
+IMAGE_WIDTH="2330"
+IMAGE_HEIGHT="1750"
+# Set to "1" to discard saved merge progress and merge every video again.
+MERGE_REBUILD="0"
+# Set to "1" to keep per-video parts so a later merge only parses new videos.
+MERGE_KEEP_PARTS="0"
 
 SCORE_THRESH="0.7"
 BIN_WIDTH="5"

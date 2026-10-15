@@ -36,7 +36,7 @@ cd stingray-image-analysis
 python3 -m venv .venv/cvision
 source .venv/cvision/bin/activate
 python -m pip install --upgrade pip setuptools wheel
-python -m pip install pyyaml \
+python -m pip install pyyaml pyarrow \
   "stingraytools[images] @ git+https://github.com/WHOIGit/stingraytools.git"
 ```
 
@@ -96,9 +96,30 @@ sbatch yolo_train.sbatch configs/my_training.conf.sh
 - `VIDEO_LIST_CSV`: video timing and processing status.
 - `FRAME_LIST_CSV`: timestamped frame records.
 - `PREDICTION_PROJECT`: per-video detections and completion markers.
-- `DETECTIONS_CSV`: combined detection table.
-- `CLASS_MAP_CSV`: model class to organism-name mapping.
+- `DETECTIONS_PARQUET`: combined detection table, with `<name>_issues.csv`
+  listing skipped or suspicious label lines.
 - `ABUNDANCE_OUT_CSV`: the updated dashboard CSV.
+
+## Detection table
+
+`merge_detections_parquet.py` turns Ultralytics video labels into one Parquet
+table that other tools read without knowing the model:
+
+| Column | Meaning |
+|---|---|
+| `media` | video file stem |
+| `frame` | 0-based source-video frame (Ultralytics label names start at 1) |
+| `class`, `class_id` | class name and model class ID |
+| `x`, `y`, `width`, `height` | COCO pixel box: top-left corner, width, height |
+| `score` | model confidence; empty for manual boxes |
+
+The file metadata holds the full class list and the image size
+(`IMAGE_WIDTH`, `IMAGE_HEIGHT`). Exact repeated lines within a label file
+(Ultralytics appends when a video is predicted twice into the same folder) are
+removed, and the merge log reports how many. Each video is merged into a part
+under `<output>.parquet.parts/` first, so an interrupted merge continues where
+it stopped; set `MERGE_REBUILD="1"` to start over, or `MERGE_KEEP_PARTS="1"` to
+keep the parts so a later merge only parses new videos.
 
 ## Abundance calculation
 
@@ -115,4 +136,6 @@ raw detection counts.
 
 ## License
 
-Stingray Image Analysis is distributed under the MIT License. See [LICENSE](LICENSE).
+Stingray Image Analysis is distributed under the GNU Affero General Public
+License v3.0 (AGPL-3.0), because its YOLO prediction and training steps use
+Ultralytics, which is licensed under the AGPL-3.0. See [LICENSE](LICENSE).
