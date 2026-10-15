@@ -18,10 +18,11 @@ RUN python -m venv /app/.venv/cvision \
     && /app/.venv/cvision/bin/python -m pip install --upgrade pip setuptools wheel \
     && /app/.venv/cvision/bin/python -m pip install \
         pyyaml \
+        pyarrow \
         "stingraytools[pipeline] @ https://github.com/WHOIGit/stingraytools/archive/${STINGRAYTOOLS_REF}.tar.gz"
 
 # Reuse the same timestamp and abundance implementations as local and Slurm runs.
-COPY frame_timestamps.sh image_abundance.sh merge_detection_labels.sh ./
-COPY build_class_map.py ./
+COPY frame_timestamps.sh image_abundance.sh ./
+COPY build_class_map.py merge_detections_parquet.py ./
 
-RUN chmod +x frame_timestamps.sh image_abundance.sh merge_detection_labels.sh
+RUN chmod +x frame_timestamps.sh image_abundance.sh

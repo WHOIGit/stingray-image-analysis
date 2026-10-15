@@ -204,6 +204,11 @@ def main() -> int:
     args = parse_args()
     if args.file_limit is not None and args.file_limit < 1:
         raise ValueError("--file-limit must be a positive integer")
+    predict_kwargs = parse_predict_args(args.predict_args)
+    # Ultralytics label suffixes count processed frames, so with a stride they
+    # no longer name source-video frames and every merged frame would be wrong.
+    if predict_kwargs.get("vid_stride", 1) != 1:
+        raise ValueError("vid_stride must be 1 so label frames match source-video frames")
 
     # Give Ultralytics an absolute project path so it cannot nest the configured
     # workspace beneath its default runs/detect directory.
@@ -235,7 +240,6 @@ def main() -> int:
     run_dir = project / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    predict_kwargs = parse_predict_args(args.predict_args)
     context = get_context("spawn")
     work_queue = context.Queue()
     for video in remaining:

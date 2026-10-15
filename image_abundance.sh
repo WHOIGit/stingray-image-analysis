@@ -156,17 +156,19 @@ require_switch() {
 require_switch "MERGE_LABELS" "$MERGE_LABELS"
 require_switch "ADD_CI" "$ADD_CI"
 
+# Detections are merged into one Parquet table (merge_detections_parquet.py).
+DETECTIONS="$DETECTIONS_PARQUET"
+
 require_dir "STINGRAY_DATA_ROOT" "$STINGRAY_DATA_ROOT"
-require_file "CLASS_YAML" "$CLASS_YAML"
-require_writable_output "DETECTIONS_CSV" "$DETECTIONS_CSV"
-require_writable_output "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
+if [[ "$MERGE_LABELS" == "1" ]]; then
+    require_file "CLASS_YAML" "$CLASS_YAML"
+fi
+require_writable_output "DETECTIONS" "$DETECTIONS"
 require_writable_output "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
 require_file "SENSOR_CSV" "$SENSOR_CSV"
 require_value "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
 resolve_media_list FRAME_LIST_CSV "$FRAME_LIST_CSV" "frame_list"
 require_file "FRAME_LIST_CSV" "$FRAME_LIST_CSV"
-require_value "DETECTIONS_CSV" "$DETECTIONS_CSV"
-require_value "CLASS_MAP_CSV" "$CLASS_MAP_CSV"
 require_value "ABUNDANCE_OUT_CSV" "$ABUNDANCE_OUT_CSV"
 
 if [[ "$MERGE_LABELS" == "1" ]]; then
@@ -178,8 +180,13 @@ if [[ "$MERGE_LABELS" == "1" ]]; then
     for label_dir in "${LABEL_DIRS[@]}"; do
         require_dir "LABEL_DIR" "$label_dir"
     done
+
+    require_value "IMAGE_WIDTH" "${IMAGE_WIDTH:-}"
+    require_value "IMAGE_HEIGHT" "${IMAGE_HEIGHT:-}"
+    require_switch "MERGE_REBUILD" "${MERGE_REBUILD:-}"
+    require_switch "MERGE_KEEP_PARTS" "${MERGE_KEEP_PARTS:-}"
 else
-    require_file "DETECTIONS_CSV" "$DETECTIONS_CSV"
+    require_file "DETECTIONS" "$DETECTIONS"
 fi
 
 CPU_COUNT="${STINGRAY_CPU_COUNT:-$(nproc)}"
@@ -203,30 +210,30 @@ echo "[INFO] Configuration: $CONFIG_PATH"
 echo "[INFO] Environment: $CVISION_ENV"
 source "$CVISION_ENV/bin/activate"
 
-mkdir -p "$(dirname "$DETECTIONS_CSV")" "$(dirname "$CLASS_MAP_CSV")" "$(dirname "$ABUNDANCE_OUT_CSV")"
+mkdir -p "$(dirname "$DETECTIONS")" "$(dirname "$ABUNDANCE_OUT_CSV")"
 
 if [[ "$MERGE_LABELS" == "1" ]]; then
-    echo "[INFO] Merging detection labels."
-    bash "$SCRIPT_DIR/merge_detection_labels.sh" \
-        --output-csv "$DETECTIONS_CSV" \
-        --class-map-csv "$CLASS_MAP_CSV" \
-        --class-yaml "$CLASS_YAML" \
-        --python-bin "$(command -v python)" \
-        --jobs "$JOBS" \
-        "${LABEL_DIRS[@]}"
-elif [[ ! -f "$CLASS_MAP_CSV" ]]; then
-    echo "[INFO] Class map CSV not found; creating it from CLASS_YAML."
-    python "$SCRIPT_DIR/build_class_map.py" \
-        --class-yaml "$CLASS_YAML" \
-        --class-map-csv "$CLASS_MAP_CSV"
-else
-    echo "[INFO] Reusing existing class map CSV: $CLASS_MAP_CSV"
+    echo "[INFO] Merging detection labels into Parquet."
+    MERGE_ARGS=(
+        --output-parquet "$DETECTIONS"
+        --class-yaml "$CLASS_YAML"
+        --image-width "$IMAGE_WIDTH"
+        --image-height "$IMAGE_HEIGHT"
+        --jobs "$JOBS"
+    )
+    if [[ "$MERGE_REBUILD" == "1" ]]; then
+        MERGE_ARGS+=(--rebuild)
+    fi
+    if [[ "$MERGE_KEEP_PARTS" == "1" ]]; then
+        MERGE_ARGS+=(--keep-parts)
+    fi
+    python "$SCRIPT_DIR/merge_detections_parquet.py" "${MERGE_ARGS[@]}" "${LABEL_DIRS[@]}"
 fi
 
 echo "[INFO] Computing abundance."
 ABUNDANCE_ARGS=(
-    --detections-csv "$DETECTIONS_CSV"
-    --class-map-csv "$CLASS_MAP_CSV"
+    --detections "$DETECTIONS"
+    --issues-csv "${DETECTIONS%.*}_abundance_issues.csv"
     --sensor-csv "$SENSOR_CSV"
     --media-csv "$FRAME_LIST_CSV"
     --out-csv "$ABUNDANCE_OUT_CSV"

@@ -12,8 +12,8 @@ on:
       - "docker/stingray-image-analysis/Dockerfile"
       - "frame_timestamps.sh"
       - "image_abundance.sh"
-      - "merge_detection_labels.sh"
       - "build_class_map.py"
+      - "merge_detections_parquet.py"
 
   # Allow an authorized maintainer to rebuild the pinned dependencies manually.
   workflow_dispatch:
