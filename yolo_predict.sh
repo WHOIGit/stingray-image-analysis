@@ -55,7 +55,7 @@ resolve_video_list() {
 
     mapfile -t run_matches < <(
         find "$search_dir" -maxdepth 1 -type f \
-            -name "${RUN_NAME}*_video_list*.csv" -print | sort
+            \( -name "${RUN_NAME}*_video_list*.parquet" -o -name "${RUN_NAME}*_video_list*.csv" \) -print | sort
     )
     if (( ${#run_matches[@]} == 1 )); then
         VIDEO_LIST_CSV="${run_matches[0]}"
@@ -70,7 +70,7 @@ resolve_video_list() {
 
     mapfile -t cruise_matches < <(
         find "$search_dir" -maxdepth 1 -type f \
-            -name "*${CRUISE}*_video_list*.csv" -print | sort
+            \( -name "*${CRUISE}*_video_list*.parquet" -o -name "*${CRUISE}*_video_list*.csv" \) -print | sort
     )
     if (( ${#cruise_matches[@]} == 1 )); then
         VIDEO_LIST_CSV="${cruise_matches[0]}"

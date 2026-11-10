@@ -102,7 +102,7 @@ resolve_media_list() {
 
     mapfile -t run_matches < <(
         find "$search_dir" -maxdepth 1 -type f \
-            -name "${RUN_NAME}*_${list_kind}*.csv" -print | sort
+            \( -name "${RUN_NAME}*_${list_kind}*.parquet" -o -name "${RUN_NAME}*_${list_kind}*.csv" \) -print | sort
     )
     if (( ${#run_matches[@]} == 1 )); then
         printf -v "$variable_name" '%s' "${run_matches[0]}"
@@ -117,7 +117,7 @@ resolve_media_list() {
 
     mapfile -t cruise_matches < <(
         find "$search_dir" -maxdepth 1 -type f \
-            -name "*${CRUISE}*_${list_kind}*.csv" -print | sort
+            \( -name "*${CRUISE}*_${list_kind}*.parquet" -o -name "*${CRUISE}*_${list_kind}*.csv" \) -print | sort
     )
     if (( ${#cruise_matches[@]} == 1 )); then
         printf -v "$variable_name" '%s' "${cruise_matches[0]}"
@@ -246,6 +246,6 @@ if [[ "$ADD_CI" == "1" ]]; then
     ABUNDANCE_ARGS+=(--add-ci)
 fi
 
-stingray images abundance "${ABUNDANCE_ARGS[@]}" --no-file-log
+stingray images abundance "${ABUNDANCE_ARGS[@]}" --overwrite --no-file-log
 
 echo "[DONE] Image abundance output: $ABUNDANCE_OUT_CSV"

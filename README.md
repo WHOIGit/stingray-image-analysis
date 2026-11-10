@@ -20,7 +20,10 @@ dashboard_data/data/<sensor_dataset>/<cruise>.csv
 
 The abundance step reads the sensor-derived CSV and writes the merged
 sensor+abundance product back to that same path. Re-running abundance replaces
-the previous abundance columns instead of creating a second product file.
+the previous abundance columns instead of creating a second product file
+(`image_abundance.sh` passes `--overwrite`; without it, abundance refuses to
+replace populated columns). Abundance leaves the `media` and `frame` columns
+written by `stingray images add-media` untouched.
 
 Raw sensor files remain the source from which StingrayTools can regenerate the
 sensor-derived CSV.
@@ -91,10 +94,17 @@ sbatch image_abundance.sbatch configs/my_cruise.conf.sh
 sbatch yolo_train.sbatch configs/my_training.conf.sh
 ```
 
+Prepare YOLO training data from annotation exports (`frame_states.csv`,
+`rois.csv`, `class_dict.csv`):
+
+```bash
+python generate_yolo_training.py --help
+```
+
 ## Outputs
 
-- `VIDEO_LIST_CSV`: video timing and processing status.
-- `FRAME_LIST_CSV`: timestamped frame records.
+- `VIDEO_LIST_CSV`: video timing and processing status (Parquet by default; CSV also works).
+- `FRAME_LIST_CSV`: timestamped frame records (Parquet by default; CSV also works).
 - `PREDICTION_PROJECT`: per-video detections and completion markers.
 - `DETECTIONS_PARQUET`: combined detection table, with `<name>_issues.csv`
   listing skipped or suspicious label lines.

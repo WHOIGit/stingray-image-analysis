@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ###############################################################################
-# Build the media/frame timestamp CSV needed by abundance on a local machine or
+# Build the media/frame timestamp tables (Parquet) needed by abundance on a local machine or
 # local HPC node.
 ###############################################################################
 

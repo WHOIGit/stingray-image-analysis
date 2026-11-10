@@ -47,11 +47,20 @@ def read_eligible_videos(
     suffix: str,
 ) -> list[Path]:
     """Read the canonical timestamp video list and apply prediction filters."""
-    with video_list.open(newline="", encoding="utf-8") as input_file:
-        reader = csv.DictReader(input_file)
-        if reader.fieldnames is None or "media_path" not in reader.fieldnames:
+    if video_list.suffix.lower() == ".parquet":
+        # Only Parquet needs pandas/pyarrow; CSV lists keep working without them.
+        import pandas as pd
+
+        table = pd.read_parquet(video_list)
+        if "media_path" not in table.columns:
             raise ValueError(f"{video_list} is missing the media_path column")
-        rows = list(reader)
+        rows = table.astype(object).where(table.notna(), None).to_dict("records")
+    else:
+        with video_list.open(newline="", encoding="utf-8") as input_file:
+            reader = csv.DictReader(input_file)
+            if reader.fieldnames is None or "media_path" not in reader.fieldnames:
+                raise ValueError(f"{video_list} is missing the media_path column")
+            rows = list(reader)
 
     eligible = [
         row

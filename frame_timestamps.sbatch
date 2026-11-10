@@ -9,7 +9,7 @@
 #SBATCH --mail-type=ALL
 
 ###############################################################################
-# Build the media/frame timestamp CSV needed by abundance.
+# Build the media/frame timestamp tables (Parquet) needed by abundance.
 ###############################################################################
 
 set -euxo pipefail

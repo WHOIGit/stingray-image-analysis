@@ -31,8 +31,9 @@ TIMESTAMP_LIST_SUFFIX=""
 if [[ "$TIMESTAMP_MODE" == "details" ]]; then
     TIMESTAMP_LIST_SUFFIX="_detailed"
 fi
-VIDEO_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_video_list${TIMESTAMP_LIST_SUFFIX}.csv"
-FRAME_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_frame_list${TIMESTAMP_LIST_SUFFIX}.csv"
+# Media-only tables are Parquet by default (stingray images frame-timestamp --format).
+VIDEO_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_video_list${TIMESTAMP_LIST_SUFFIX}.parquet"
+FRAME_LIST_CSV="${MEDIA_LIST_DIR}/${RUN_NAME}_frame_list${TIMESTAMP_LIST_SUFFIX}.parquet"
 DETECTIONS_PARQUET="${ABUNDANCE_WORKSPACE_DIR}/${RUN_NAME}_detection_labels.parquet"
 SENSOR_CSV="${STINGRAY_DATA_ROOT}/dashboard_data/data/${SENSOR_DATASET}/${RUN_NAME}.csv"
 # Publish the merged product over the sensor CSV so the dashboard sees one
